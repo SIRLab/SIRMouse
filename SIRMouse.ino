@@ -1,5 +1,5 @@
 /*
-   SirTitan
+   SIRMouse
    Author: https://github.com/rafaelalmeidatk
 */
 
@@ -46,8 +46,8 @@ int currentSpeed = 0;
 //--------------------------------------------------
 // Movement changed
 
-bool changed = false;
 unsigned int sideTick = 0;
+unsigned int movementTick = 0;
 
 //--------------------------------------------------
 
@@ -75,14 +75,12 @@ void motorDirection(int moveId) {
 }
 
 void moveRobot(int moveId) {
-  Serial.print("Move robot: ");
-  Serial.println(moveId);
   motorDirection(moveId);
-
-  int index = moveId == FRONT || moveId == BACK ? MOVEMENT : SIDE;
-  analogWrite(motorsE[index], 255);
-  
-  if (moveId == LEFT || moveId == RIGHT) {
+  if (moveId == FRONT || moveId == BACK) {
+    analogWrite(motorsE[MOVEMENT], 255);
+    movementTick = millis() + 50;
+  } else {
+    analogWrite(motorsE[SIDE], 255);
     sideTick = millis() + 250;
   }
 }
@@ -92,34 +90,25 @@ void readRCReceiver() {
   ch2Value = pulseIn(rcCh2Pin, HIGH);
 }
 
-void changedState() {
-  changed = true;
-  delay(50);
-}
-
 bool gotMove(int idMove) {
-  if (idMove == FRONT && ch1Value != 0 && ch1Value > 1700) {
-    return true;
-  } else if (idMove == BACK && ch1Value != 0 && ch1Value < 1100) {
-    return true;
+  if (ch1Value != 0) {
+    if (idMove == FRONT && ch1Value > 1700) {
+      return true;
+    } else if (idMove == BACK && ch1Value < 1100) {
+      return true;
+    }
   }
-  if (idMove == RIGHT && ch2Value != 0 && ch2Value > 1700) {
-    return true;
-  } else if (idMove == LEFT && ch2Value != 0 && ch2Value  < 1100) {
-    return true;
+
+  if (ch2Value != 0) {
+    if (idMove == RIGHT && ch2Value > 1700) {
+      return true;
+    } else if (idMove == LEFT && ch2Value  < 1100) {
+      return true;
+    }
   }
 
   return false;
 }
-
-// FIRST: ESQUERDA | DIREITA
-// SECOND: FRENTE | TRAS
-
-// LOW - LOW: FRENTE (DIREITA)
-// LOW - HIGH: TRAS (DIREITA)
-
-// HIGH - HIGH: TRAS (ESQUERDA)
-// HIGH - LOW: FRENTE (ESQUERDA
 
 void setup()
 {
@@ -146,9 +135,7 @@ void loop()
   Serial.print(ch1Value);
   Serial.print('\t');
   Serial.print("Channel #2: ");
-  Serial.print(ch2Value);
-  Serial.print('\t');
-  Serial.println(sideTick);
+  Serial.println(ch2Value);
 
   if (gotMove(FRONT)) {
     moveRobot(FRONT);
@@ -164,13 +151,13 @@ void loop()
     moveRobot(LEFT);
   }
 
+  if (movementTick != 0 && millis() > movementTick) {
+    analogWrite(motorsE[MOVEMENT], 0);
+    movementTick = 0;
+  }
+
   if (sideTick != 0 && millis() > sideTick) {
     analogWrite(motorsE[SIDE], 0);
     sideTick = 0;
   }
-
-  if (changed) {
-    analogWrite(motorsE[MOVEMENT], 0);
-    changed = false;
-  }
-} 
+}
